@@ -1,4 +1,5 @@
-Q: Why lambda struct needed?
+**Q: Why lambda struct needed?**
+
 A: With the structure like:
 ```
 type person struct {
@@ -51,11 +52,12 @@ output:
 hxia 21
 ```
 
-The memory allocated is same as specific struct nesting, but can directly access to the filed of name/age by object e.
-It can implement the effect of inherit, which to make a relationship with A has B, like e <template empolyee> has a field name.
-With the specific struct nesting, the relationship is e has a object young which has a filed name.
+The memory allocated is same as specific struct nesting, but can directly access to the filed of name/age by object e.  
+It can implement the effect of inherit, which to make a relationship with A has B, like e <template empolyee> has a field name.  
+With the specific struct nesting, the relationship is e has a object young which has a filed name.  
 
-Q: how to overloading the property?
+**Q: how to overloading the property?**
+
 A: Yes, with the lambda struct nesting, we can implement the effect like inherit. So according can implement the overloading which to over write the property. such as:
 ```
 type empolyee struct {
@@ -78,7 +80,8 @@ output:
 Troy hxia
 ```
 
-Q: how can implement the inherit and overloading of method for object?
+**Q: how can implement the inherit and overloading of method for object?**
+
 A: Not only can implement the overloading of property, but also can implement the overloading of method for object, like inherit:
 ```
 func (p *person) sayHello() {
