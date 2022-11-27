@@ -17,13 +17,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 		hashWr := md5.New()
 		hashWr.Write([]byte(timestamp))
 		token := fmt.Sprintf("%x", hashWr.Sum(nil))
-		fmt.Println(token)
 
 		t, _ := template.ParseFiles("login.go.tpl")
 		log.Println(t.Execute(w, token))
 	} else {
 		r.ParseForm()
-		fmt.Println(r.Form)
+
+		if token := r.Form.Get("token"); token != "" {
+			fmt.Println("Info: form token is:", token)
+		} else {
+			fmt.Println("Error: please get the form first!!")
+			return
+		}
+
 		fmt.Println("username:", r.Form["username"])
 		fmt.Println("password:", r.Form["password"])
 
