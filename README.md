@@ -11,3 +11,5 @@
 - [database](database/doc/README.md)
 
 - [hash](hash/README.md)
+
+- [rand](rand/README.md)
