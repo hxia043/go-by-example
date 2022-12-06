@@ -13,3 +13,5 @@
 - [hash](hash/README.md)
 
 - [rand](rand/README.md)
+
+- [template](template/README.md)
