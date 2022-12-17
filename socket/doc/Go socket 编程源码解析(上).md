@@ -67,7 +67,7 @@ for {
 # 2. socket 实现
 下面重点介绍实现 socket 网络传输的 `Listen`,`Accept`,`Read` and `Write` 方法。socket 结构图如下：  
 
-![socket](./doc/socket.png "socket")
+![socket](./img/socket.png "socket")
 
 ## 2.1 Listen
 示例中调用 net 包的 ListenTCP 函数实现 socket 的监听：
