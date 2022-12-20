@@ -11,3 +11,4 @@
 - [json](json/README.md)  
 - [socket](socket/README.md)  
 - [encrypt](encrypt/README.md)
+- [error](error/README.md)
