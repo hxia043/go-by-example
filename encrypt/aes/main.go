@@ -34,7 +34,7 @@ func main() {
 
 	// decrypt
 	text := make([]byte, len(ciphertext))
-	cfbdec := cipher.NewCFBEncrypter(c, iv)
+	cfbdec := cipher.NewCFBDecrypter(c, iv)
 	cfbdec.XORKeyStream(text, ciphertext)
 	fmt.Printf("%x => %s\n", ciphertext, text)
 }
