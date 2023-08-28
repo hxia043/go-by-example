@@ -3,7 +3,7 @@ module go-restful
 go 1.20
 
 require (
-	github.com/emicklei/go-restful v2.16.0+incompatible
+	github.com/emicklei/go-restful/v3 v3.9.0
 	k8s.io/apiserver v0.27.4
 	k8s.io/kubernetes v1.27.4
 )
@@ -19,7 +19,6 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
