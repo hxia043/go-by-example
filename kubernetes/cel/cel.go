@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 
 	"github.com/google/cel-go/checker/decls"
 	"github.com/google/cel-go/common/types"
-	"gopkg.in/yaml.v2"
+	"github.com/google/cel-go/common/types/ref"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 
@@ -106,7 +109,6 @@ func mapType(valSchema *schema.Structural) schema.Structural {
 }
 
 func kubernetesCEL() {
-	crd := &apiextensions.CustomResourceDefinition{}
 	crdYaml := `
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -132,8 +134,10 @@ spec:
             x-kubernetes-validations:
             - rule: "self.replicas >= 1 && self.replicas <= 10"
               message: "replicas must be between 1 and 10"
-            - rule: "self.spec.version.matches('^[a-zA-Z0-9]+$')"
+            - rule: "self.version.matches('^[a-zA-Z0-9]+$')"
               message: "version must match the regex pattern ^[a-zA-Z0-9]+$"
+            - rule: "addNumbers(self.replicas, self.replicas)  == 10"
+              message: "add numbers of replicas"
 scope: Namespaced
 names:
   plural: foos
@@ -143,27 +147,53 @@ names:
   - f
 `
 
-	err := yaml.Unmarshal([]byte(crdYaml), crd)
-	if err != nil {
-		log.Fatalf("Error unmarshalling CRD: %v", err)
+	crYaml := `
+apiVersion: apiextensions.k8s.io/v1
+kind: Foo
+metadata:
+  name: foo
+spec:
+  replicas: 8
+  version: v1
+`
+
+	var crdUnstructured unstructured.Unstructured
+	if err := yaml.Unmarshal([]byte(crdYaml), &crdUnstructured.Object); err != nil {
+		log.Fatalf("Error unmarshaling YAML to unstructured: %v", err)
 	}
 
-	structural, err := schema.NewStructural(crd.Spec.Versions[0].Schema.OpenAPIV3Schema)
+	crdJSON, err := crdUnstructured.MarshalJSON()
+	if err != nil {
+		log.Fatalf("Error marshaling unstructured to JSON: %v", err)
+	}
+
+	var crd v1.CustomResourceDefinition
+	if err = json.Unmarshal(crdJSON, &crd); err != nil {
+		log.Fatalf("Error marshaling unstructured to CustomResourceDefinition: %v", err)
+	}
+
+	convertedProps := &apiextensions.JSONSchemaProps{}
+	if err := v1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(crd.Spec.Versions[0].Schema.OpenAPIV3Schema, convertedProps, nil); err != nil {
+		log.Fatalf("Error convert json schema props: %v", err)
+	}
+
+	structural, err := schema.NewStructural(convertedProps)
 	if err != nil {
 		log.Fatalf("Error creating structural schema: %v", err)
 	}
 
-	celValidator := apiextensionscel.NewValidator(structural, false, celconfig.PerCallLimit)
+	celValidator := apiextensionscel.NewValidator(structural, true, celconfig.PerCallLimit)
+	if celValidator == nil {
+		log.Fatalf("Error: expected non nil validator")
+	}
 
-	foo := Foo{
-		Spec: FooSpec{
-			Replicas: 100,
-			Version:  "00",
-		},
+	var crUnstructured unstructured.Unstructured
+	if err := yaml.Unmarshal([]byte(crYaml), &crUnstructured.Object); err != nil {
+		log.Fatalf("Error unmarshaling YAML to unstructured: %v", err)
 	}
 
 	var oldObject interface{}
-	errs, _ := celValidator.Validate(context.TODO(), field.NewPath("root"), structural, foo, oldObject, celconfig.RuntimeCELCostBudget)
+	errs, _ := celValidator.Validate(context.TODO(), field.NewPath("foo"), structural, crUnstructured.Object, oldObject, celconfig.RuntimeCELCostBudget)
 	if len(errs) > 0 {
 		for _, e := range errs {
 			fmt.Printf("Validation error: %v\n", e)
@@ -197,13 +227,71 @@ func commonCEL() {
 
 	input := map[string]interface{}{
 		"name": "Alice",
-		"age":  10,
+		"age":  30,
 	}
 
 	out, _, err := prg.Eval(input)
 	if err != nil {
 		log.Fatalf("execute failed: %v", err)
 	}
+
+	if out == types.True {
+		fmt.Println("expression result: true")
+	} else {
+		fmt.Println("exepression result: false")
+	}
+}
+
+func addNumbers_double_double(args ...ref.Val) ref.Val {
+	if len(args) != 2 {
+		return types.NewErr("addNumbers requires 2 arguments")
+	}
+
+	return types.Double(args[0].(types.Double) + args[1].(types.Double))
+}
+
+func customCel() {
+	env, err := cel.NewEnv(
+		cel.Declarations(
+			decls.NewVar("name", decls.String),
+			decls.NewVar("age", decls.Int),
+		),
+		cel.Function("addNumbers",
+			cel.Overload(
+				"addNumbers_double_double",
+				[]*cel.Type{cel.DoubleType, cel.DoubleType},
+				cel.DoubleType,
+				cel.FunctionBinding(addNumbers_double_double)),
+		),
+	)
+	if err != nil {
+		log.Fatalf("env create failed: %v", err)
+	}
+
+	//expression := "name == 'Alice' && age > 20 && addNumbers(number, number)"
+	expression := "addNumbers(3.0, 4.0)"
+	ast, iss := env.Compile(expression)
+	if iss.Err() != nil {
+		log.Fatalf("compile expression failed: %v", iss.Err())
+	}
+
+	prg, err := env.Program(ast)
+	if err != nil {
+		log.Fatalf("create programe failed: %v", err)
+	}
+
+	input := map[string]interface{}{
+		"name":   "Alice",
+		"age":    30,
+		"number": 4.3,
+	}
+
+	out, _, err := prg.Eval(input)
+	if err != nil {
+		log.Fatalf("execute failed: %v", err)
+	}
+
+	fmt.Println(out)
 
 	if out == types.True {
 		fmt.Println("expression result: true")
@@ -308,7 +396,7 @@ func defaultCEL() {
 }
 
 func main() {
-	flag := "default"
+	flag := "kubernetes"
 	switch flag {
 	case "common":
 		commonCEL()
@@ -316,6 +404,8 @@ func main() {
 		kubernetesCEL()
 	case "default":
 		defaultCEL()
+	case "custom":
+		customCel()
 	default:
 		fmt.Println("unknown flag")
 	}
