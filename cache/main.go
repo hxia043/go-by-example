@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	c := lru.New(6)
+	c := lru.NewLRUCache(6)
 	c.Put(1, 1)
 	fmt.Println(c.Get(1))
 	c.Print()

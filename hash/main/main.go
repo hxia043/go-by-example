@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"strconv"
 	"time"
@@ -26,4 +27,11 @@ func main() {
 	}
 
 	fmt.Println(base64.StdEncoding.EncodeToString(dk))
+
+	key := "3"
+	var bucketMask uint32 = 1023
+	h := fnv.New32a()
+	h.Write([]byte(key))
+	fmt.Println(h.Sum32())
+	fmt.Println(h.Sum32() & bucketMask)
 }

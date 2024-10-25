@@ -10,11 +10,6 @@ type LRUCache struct {
 	capacity   int
 }
 
-type Node struct {
-	key, value int
-	Pre, Next  *Node
-}
-
 func (c *LRUCache) len() int {
 	len := 0
 	for cur := c.head; cur != nil; cur = cur.Next {
@@ -113,7 +108,7 @@ func (c *LRUCache) Put(key int, value int) {
 	c.caches[key] = newNode
 }
 
-func New(capacity int) *LRUCache {
+func NewLRUCache(capacity int) *LRUCache {
 	return &LRUCache{
 		caches:   map[int]*Node{},
 		capacity: capacity,
